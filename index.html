@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#101513">
+  <meta name="description" content="CapeRun is a tiny, lightweight South African-inspired arcade driving prototype.">
+  <title>CapeRun — Night Run</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; background:#101513; color:#f4f3e9; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; display:grid; place-items:center; padding:16px; background:radial-gradient(ellipse at 50% 0%,#273b32 0,#101513 65%); }
+    .shell { width:min(100%,1000px); }
+    header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 2px 10px; }
+    .brand { display:flex; align-items:center; gap:10px; }
+    .mark { width:38px; height:38px; display:grid; place-items:center; background:#d7ff63; color:#151a12; font-weight:950; border-radius:12px; transform:rotate(-5deg); }
+    h1 { margin:0; font-size:clamp(20px,4vw,27px); letter-spacing:-1px; }
+    .tag { color:#b5c3b4; font-size:12px; margin-top:2px; }
+    button { font:inherit; color:inherit; cursor:pointer; }
+    .top-button { border:1px solid #46554a; background:#18211c; border-radius:10px; padding:9px 13px; }
+    .top-button:hover { border-color:#d7ff63; }
+    .game-wrap { position:relative; overflow:hidden; border:1px solid #48564b; border-radius:16px; background:#18211c; box-shadow:0 18px 70px #0008; }
+    canvas { display:block; width:100%; aspect-ratio:16/9; touch-action:none; }
+    .hud { position:absolute; inset:12px 12px auto; display:flex; justify-content:space-between; align-items:flex-start; pointer-events:none; gap:8px; }
+    .hud-card { min-width:105px; padding:8px 11px; border:1px solid #ffffff24; border-radius:11px; background:#101513ce; backdrop-filter:blur(5px); }
+    .label { color:#aab8aa; font-size:9px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase; }
+    .value { margin-top:2px; font-size:20px; font-weight:850; line-height:1.05; font-variant-numeric:tabular-nums; }
+    .meter { width:130px; height:5px; background:#526054; margin-top:7px; border-radius:5px; overflow:hidden; }
+    .meter > span { display:block; width:25%; height:100%; background:#ff7c68; transition:width .15s; }
+    .overlay { position:absolute; inset:0; display:grid; place-items:center; padding:20px; background:#0b100dcc; }
+    .overlay[hidden] { display:none; }
+    .panel { width:min(440px,100%); text-align:center; padding:25px; border:1px solid #667264; border-radius:17px; background:#18211cf2; box-shadow:0 12px 50px #0008; }
+    .eyebrow { color:#d7ff63; text-transform:uppercase; letter-spacing:2px; font-size:10px; font-weight:900; }
+    .panel h2 { font-size:clamp(25px,6vw,38px); line-height:1; letter-spacing:-1.5px; margin:10px 0; }
+    .panel p { color:#c1cbbd; font-size:14px; line-height:1.6; margin:10px 0 18px; }
+    .start { border:0; border-radius:10px; padding:12px 22px; background:#d7ff63; color:#141911; font-weight:900; }
+    .start:hover { background:#e5ff9b; transform:translateY(-1px); }
+    .help { display:flex; justify-content:space-between; gap:12px; padding:12px 3px 0; color:#aeb8ac; font-size:12px; }
+    .help strong { color:#e7ecdF; }
+    .mobile-controls { display:none; justify-content:space-between; position:absolute; inset:auto 12px 12px; pointer-events:none; }
+    .pad { display:flex; gap:8px; }
+    .touch { width:52px; height:48px; border:1px solid #ffffff55; border-radius:12px; color:white; background:#101513b8; font-size:19px; font-weight:900; pointer-events:auto; touch-action:none; }
+    .touch:active { background:#d7ff63; color:#141911; }
+    @media (pointer:coarse) { .mobile-controls { display:flex; } .help { font-size:10px; } }
+    @media (max-width:560px) { body{padding:8px}.hud{inset:7px 7px auto}.hud-card{min-width:76px;padding:6px 8px}.value{font-size:16px}.meter{width:90px}.tag{display:none}.help span:last-child{display:none} }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div class="brand"><div class="mark">CR</div><div><h1>CapeRun</h1><div class="tag">NIGHT RUN // CAPE TOWN, SOUTH AFRICA</div></div></div>
+      <button class="top-button" id="soundBtn" type="button" aria-label="Toggle sound">Sound: off</button>
+    </header>
+    <section class="game-wrap" aria-label="CapeRun arcade driving game">
+      <canvas id="game" width="960" height="540" aria-label="Top-down arcade driving game"></canvas>
+      <div class="hud" aria-live="polite">
+        <div class="hud-card"><div class="label">Speed</div><div class="value"><span id="speed">0</span><small style="font-size:10px;color:#aab8aa"> km/h</small></div></div>
+        <div class="hud-card"><div class="label">Run time</div><div class="value" id="timer">00:00</div></div>
+        <div class="hud-card"><div class="label">Pursuit</div><div class="value" id="heatText">LOW</div><div class="meter"><span id="heatBar"></span></div></div>
+        <div class="hud-card"><div class="label">Rank</div><div class="value" id="rank">Rookie</div></div>
+      </div>
+      <div class="mobile-controls" aria-label="Touch driving controls">
+        <div class="pad"><button class="touch" data-control="left" aria-label="Steer left">◀</button><button class="touch" data-control="right" aria-label="Steer right">▶</button></div>
+        <div class="pad"><button class="touch" data-control="brake" aria-label="Brake">▼</button><button class="touch" data-control="gas" aria-label="Accelerate">▲</button></div>
+      </div>
+      <div class="overlay" id="overlay">
+        <div class="panel"><div class="eyebrow">A small arcade prototype</div><h2 id="panelTitle">Own the night.</h2><p id="panelText">Take the wheel of your Ballade i160 and keep the chase behind you. Dodge traffic, stay on the road, and last 60 seconds to earn your first street rank.</p><button class="start" id="startBtn">START THE RUN</button></div>
+      </div>
+    </section>
+    <div class="help"><span><strong>Drive:</strong> WASD / arrow keys &nbsp; <strong>Brake:</strong> Space &nbsp; <strong>Pause:</strong> P</span><span>Fictional arcade pursuit • No weapons • Best on keyboard or touch</span></div>
+  </main>
+<script>
+(() => {
+  'use strict';
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  const $ = (id) => document.getElementById(id);
+  const keys = new Set();
+  const held = { left:false, right:false, gas:false, brake:false };
+  const W=960, H=540, road={left:178,right:782};
+  let state='menu', last=0, elapsed=0, speed=0, heat=18, scroll=0, spawn=0, traffic=[], particles=[];
+  let player={x:480,y:390,w:40,h:70,damage:0};
+  let cop={x:480,y:492};
+  let audio=null, soundOn=false;
+  const ranks=['Rookie','Learner','Street Ace','Night Runner','Cape Legend'];
+  const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+  const rand=(a,b)=>a+Math.random()*(b-a);
+  function rounded(x,y,w,h,r,fill){ctx.fillStyle=fill;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();}
+  function drawCar(x,y,w,h,color,police=false){
+    ctx.save();ctx.translate(x,y);
+    // soft shadow, body and simple glass; deliberately stylized, not a licensed vehicle model
+    ctx.fillStyle='#0007';ctx.beginPath();ctx.ellipse(2,7,w*.58,h*.50,0,0,Math.PI*2);ctx.fill();
+    rounded(-w/2,-h/2,w,h,9,color);
+    rounded(-w*.36,-h*.23,w*.72,h*.30,6,police?'#c9e8e2':'#243b3d');
+    rounded(-w*.32,h*.12,w*.64,h*.20,5,police?'#dceae3':'#314c4e');
+    ctx.fillStyle='#fff3c1';ctx.fillRect(-w*.38,-h*.47,w*.22,4);ctx.fillRect(w*.16,-h*.47,w*.22,4);
+    ctx.fillStyle='#ff594f';ctx.fillRect(-w*.38,h*.41,w*.22,4);ctx.fillRect(w*.16,h*.41,w*.22,4);
+    ctx.fillStyle='#171a18';ctx.fillRect(-w*.57,-h*.32,5,14);ctx.fillRect(w*.49,-h*.32,5,14);ctx.fillRect(-w*.57,h*.20,5,14);ctx.fillRect(w*.49,h*.20,5,14);
+    if(police){ctx.fillStyle='#ff554f';ctx.fillRect(-7,-h*.12,7,5);ctx.fillStyle='#68baff';ctx.fillRect(0,-h*.12,7,5);}
+    ctx.restore();
+  }
+  function scenery(){
+    ctx.fillStyle='#263a2d';ctx.fillRect(0,0,W,H);
+    // distant mountain silhouette
+    ctx.fillStyle='#344838';ctx.beginPath();ctx.moveTo(0,95);ctx.lineTo(0,68);ctx.lineTo(95,40);ctx.lineTo(176,87);ctx.lineTo(270,50);ctx.lineTo(355,98);ctx.lineTo(440,48);ctx.lineTo(530,91);ctx.lineTo(650,42);ctx.lineTo(780,91);ctx.lineTo(880,45);ctx.lineTo(960,77);ctx.lineTo(960,120);ctx.closePath();ctx.fill();
+    // roadside ground details
+    for(let i=0;i<14;i++){
+      const y=((i*53+scroll*.55)%620)-45;
+      for(const side of [-1,1]){
+        const x=side<0?rand(24,145):rand(815,936);
+        ctx.fillStyle=i%3===0?'#d4c797':'#496245';ctx.fillRect(x,y,rand(12,34),rand(8,21));
+      }
+    }
+    ctx.fillStyle='#343a3a';ctx.fillRect(road.left,0,road.right-road.left,H);
+    ctx.fillStyle='#e2d9ad';ctx.fillRect(road.left+8,0,4,H);ctx.fillRect(road.right-12,0,4,H);
+    // lane dashes scroll for motion
+    const dash=(scroll%94);
+    for(let y=-94+dash;y<H;y+=94){ctx.fillStyle='#d5d0b8';ctx.fillRect(road.left+201,y,5,48);ctx.fillRect(road.left+399,y,5,48);}
+    // shoulder reflectors
+    for(let y=-40+(scroll%65);y<H;y+=65){ctx.fillStyle='#d7ff63';ctx.fillRect(road.left+19,y,4,8);ctx.fillRect(road.right-23,y,4,8);}
+    // subtle edge vignette
+    const g=ctx.createLinearGradient(0,0,W,0);g.addColorStop(0,'#0005');g.addColorStop(.2,'#0000');g.addColorStop(.8,'#0000');g.addColorStop(1,'#0005');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  }
+  function spawnTraffic(){
+    const lanes=[road.left+105,road.left+302,road.left+503];
+    const lane=lanes[Math.floor(Math.random()*lanes.length)];
+    traffic.push({x:lane+rand(-27,27),y:-55,w:rand(34,40),h:rand(58,72),color:['#e8b94e','#8fc6bd','#b6a2d0','#cf755e'][Math.floor(Math.random()*4)],passed:false});
+  }
+  function reset(){elapsed=0;speed=0;heat=18;scroll=0;spawn=0;traffic=[];particles=[];player={x:480,y:390,w:40,h:70,damage:0};cop={x:480,y:492};updateHud();}
+  function updateHud(){
+    $('speed').textContent=Math.round(speed);
+    $('timer').textContent=`${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(Math.floor(elapsed%60)).padStart(2,'0')}`;
+    $('heatText').textContent=heat<30?'LOW':heat<65?'HOT':'CRITICAL';$('heatBar').style.width=`${heat}%`;
+    $('rank').textContent=ranks[Math.min(ranks.length-1,Math.floor(elapsed/15))];
+  }
+  function collision(a,b){return Math.abs(a.x-b.x)<(a.w+b.w)*.40&&Math.abs(a.y-b.y)<(a.h+b.h)*.39;}
+  function playTone(freq,duration=.08){if(!soundOn)return;try{audio=audio||new(window.AudioContext||window.webkitAudioContext)();const o=audio.createOscillator(),g=audio.createGain();o.frequency.value=freq;o.type='sine';g.gain.value=.035;o.connect(g);g.connect(audio.destination);o.start();g.gain.exponentialRampToValueAtTime(.001,audio.currentTime+duration);o.stop(audio.currentTime+duration);}catch(e){}}
+  function update(dt){
+    if(state!=='playing')return;
+    elapsed+=dt;
+    const accel=keys.has('ArrowUp')||keys.has('w')||held.gas;
+    const brake=keys.has('ArrowDown')||keys.has('s')||keys.has(' ')||held.brake;
+    const left=keys.has('ArrowLeft')||keys.has('a')||held.left;
+    const right=keys.has('ArrowRight')||keys.has('d')||held.right;
+    speed=clamp(speed+(accel?76:-22)*dt-(brake?120*dt:0),0,220);
+    const steer=(left?-1:0)+(right?1:0);
+    player.x+=steer*(250+speed*.45)*dt;
+    player.y+=((keys.has('ArrowDown')||keys.has('s')||held.brake)?1:0)*70*dt-((accel)?35*dt:0);
+    player.x=clamp(player.x,road.left+43,road.right-43);player.y=clamp(player.y,245,H-92);
+    scroll+=speed*dt*.65;
+    spawn-=dt;if(spawn<=0){spawnTraffic();spawn=rand(.72,1.24);}
+    for(const car of traffic){car.y+=(90+speed*.63)*dt;if(!car.passed&&car.y>player.y+45){car.passed=true;heat=Math.max(8,heat-4);}}
+    traffic=traffic.filter(c=>c.y<H+100);
+    // The fictional patrol car tracks the player; impacts raise pressure, clean driving lets it fall.
+    cop.x+=(player.x-cop.x)*Math.min(1,dt*(.65+heat/100));
+    cop.y=clamp(510-heat*.9,438,510);
+    heat=clamp(heat+(speed>145?3.5: speed<65?-3:0)*dt,5,100);
+    for(const car of traffic){if(collision(player,car)){car.y=H+200;heat=clamp(heat+20,0,100);player.damage+=1;speed*=.48;playTone(110,.16);for(let i=0;i<10;i++)particles.push({x:player.x,y:player.y,vx:rand(-90,90),vy:rand(-100,30),life:rand(.2,.55)});}}
+    if(heat>=100){finish(false);}
+    if(elapsed>=60){finish(true);}
+    for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;}particles=particles.filter(p=>p.life>0);
+    updateHud();
+  }
+  function finish(win){state='over';$('panelTitle').textContent=win?'You made the run.':'The chase caught up.';$('panelText').textContent=win?`60 seconds survived. Your rank: ${ranks[Math.min(ranks.length-1,Math.floor(elapsed/15))]}. Keep building CapeRun one small race at a time.`:'Too much pursuit pressure. Ease off, dodge traffic, and try another route.';$('startBtn').textContent='RUN IT BACK';$('overlay').hidden=false;}
+  function render(){
+    scenery();
+    for(const car of traffic)drawCar(car.x,car.y,car.w,car.h,car.color);
+    // pursuit glow
+    ctx.fillStyle=`rgba(255,60,55,${.04+heat/1300})`;ctx.beginPath();ctx.ellipse(cop.x,cop.y,55,45,0,0,Math.PI*2);ctx.fill();
+    drawCar(cop.x,cop.y,39,68,'#e4e6dc',true);
+    drawCar(player.x,player.y,player.w,player.h,'#d7ff63');
+    for(const p of particles){ctx.globalAlpha=clamp(p.life*2,0,1);ctx.fillStyle='#ffbd68';ctx.fillRect(p.x,p.y,4,4);}ctx.globalAlpha=1;
+    if(state==='paused'){ctx.fillStyle='#10151388';ctx.fillRect(0,0,W,H);ctx.fillStyle='white';ctx.textAlign='center';ctx.font='800 32px system-ui';ctx.fillText('PAUSED',W/2,H/2);ctx.font='14px system-ui';ctx.fillText('Press P to continue',W/2,H/2+27);}
+  }
+  function frame(now){const dt=Math.min(.04,(now-last)/1000||0);last=now;update(dt);render();requestAnimationFrame(frame);}
+  $('startBtn').addEventListener('click',()=>{reset();state='playing';$('overlay').hidden=true;last=performance.now();});
+  $('soundBtn').addEventListener('click',()=>{soundOn=!soundOn;$('soundBtn').textContent=`Sound: ${soundOn?'on':'off'}`;if(soundOn)playTone(660);});
+  window.addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault();keys.add(k);if(k==='p'){if(state==='playing')state='paused';else if(state==='paused'){state='playing';last=performance.now();}}});
+  window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
+  window.addEventListener('blur',()=>keys.clear());
+  document.querySelectorAll('[data-control]').forEach(btn=>{const key=btn.dataset.control;const down=e=>{e.preventDefault();held[key]=true;};const up=e=>{e.preventDefault();held[key]=false;};btn.addEventListener('pointerdown',down);btn.addEventListener('pointerup',up);btn.addEventListener('pointercancel',up);btn.addEventListener('pointerleave',up);});
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
